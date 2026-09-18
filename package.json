@@ -1,0 +1,11 @@
+{
+  "name": "hypersomnia-cloudflare",
+  "private": true,
+  "scripts": {
+    "build": "bash ./build-hypersomnia.sh",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}
