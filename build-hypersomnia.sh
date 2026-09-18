@@ -104,8 +104,8 @@ cd "$HYPERSOMNIA"
 
 echo "Building Hypersomnia for Web..."
 
-export CC=emcc
-export CXX=em++
+unset CC
+unset CXX
 
 ./cmake/build.sh Release Web
 
