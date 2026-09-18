@@ -171,4 +171,4 @@ echo "========================================"
 find "$DIST" -type f -print
 
 echo ""
-echo "Hypersomnia Web build complete."
+echo "echo "Hypersomnia WebAssembly Build - Cloudflare"
