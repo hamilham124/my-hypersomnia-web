@@ -133,18 +133,17 @@ find "$BUILD_DIR" \
 # Copy Web build
 # --------------------------------------------------
 
-cp -R "$BUILD_DIR"/hypersomnia/* "$DIST/" 2>/dev/null || true
+echo "Copying Web build to dist..."
 
-# Fallback: locate generated files if the layout differs
-find "$BUILD_DIR" \
-    -type f \
-    \( \
-        -name "*.html" \
-        -o -name "*.js" \
-        -o -name "*.wasm" \
-        -o -name "*.data" \
-    \) \
-    -exec cp {} "$DIST/" \;
+cp "$BUILD_DIR"/Hypersomnia.html "$DIST/" 2>/dev/null || true
+cp "$BUILD_DIR"/Hypersomnia.js "$DIST/" 2>/dev/null || true
+cp "$BUILD_DIR"/Hypersomnia.wasm "$DIST/" 2>/dev/null || true
+cp "$BUILD_DIR"/Hypersomnia.data "$DIST/" 2>/dev/null || true
+
+# Copy the Web assets required by the game.
+if [ -d "$BUILD_DIR/assets" ]; then
+    cp -R "$BUILD_DIR/assets" "$DIST/"
+fi
 
 # --------------------------------------------------
 # Verify
