@@ -1,4 +1,4 @@
-name = "hypersomnia-web"
+name = "my-hypersomnia-web"
 
 main = "worker.js"
 
