@@ -135,14 +135,28 @@ find "$BUILD_DIR" \
 
 echo "Copying Web build to dist..."
 
-cp "$BUILD_DIR"/Hypersomnia.html "$DIST/" 2>/dev/null || true
-cp "$BUILD_DIR"/Hypersomnia.js "$DIST/" 2>/dev/null || true
-cp "$BUILD_DIR"/Hypersomnia.wasm "$DIST/" 2>/dev/null || true
-cp "$BUILD_DIR"/Hypersomnia.data "$DIST/" 2>/dev/null || true
+find "$BUILD_DIR" \
+    -type f \
+    \( \
+        -name "*.html" \
+        -o -name "*.js" \
+        -o -name "*.wasm" \
+        -o -name "*.data" \
+    \) \
+    -exec cp {} "$DIST/" \;
 
-# Copy the Web assets required by the game.
-if [ -d "$BUILD_DIR/assets" ]; then
-    cp -R "$BUILD_DIR/assets" "$DIST/"
+# Copy Hypersomnia's game resources.
+if [ -d "$HYPERSOMNIA/hypersomnia" ]; then
+    cp -R "$HYPERSOMNIA/hypersomnia" "$DIST/"
+fi
+
+# --------------------------------------------------
+# Fail if no WebAssembly build was produced
+# --------------------------------------------------
+
+if ! find "$DIST" -type f \( -name "*.html" -o -name "*.wasm" \) | grep -q .; then
+    echo "ERROR: No WebAssembly game files were generated."
+    exit 1
 fi
 
 # --------------------------------------------------
