@@ -109,6 +109,11 @@ unset CXX
 
 ./cmake/build.sh Release Web
 
+BUILD_DIR="$HYPERSOMNIA/build/current"
+
+echo "Compiling WebAssembly..."
+cmake --build "$BUILD_DIR" --parallel 2
+
 # --------------------------------------------------
 # Locate generated build
 # --------------------------------------------------
