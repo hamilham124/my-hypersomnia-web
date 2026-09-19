@@ -1,0 +1,44 @@
+name: Build Hypersomnia Web
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            ninja-build \
+            clang \
+            lld \
+            python3 \
+            python3-pip \
+            git \
+            wget \
+            unzip
+
+      - name: Build Hypersomnia WebAssembly
+        run: |
+          chmod +x build-hypersomnia.sh
+          ./build-hypersomnia.sh
+
+      - name: Package itch.io build
+        run: |
+          cd dist
+          zip -r ../hypersomnia-web.zip .
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hypersomnia-web
+          path: hypersomnia-web.zip
