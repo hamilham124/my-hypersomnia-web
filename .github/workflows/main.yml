@@ -12,22 +12,27 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
       - name: Install build dependencies
         run: |
+          sudo apt-get update
           sudo apt-get install -y \
             cmake \
             ninja-build \
             clang \
             lld \
-            libc++-dev \
-            libc++abi-dev \
+            libc++-18-dev \
+            libc++abi-18-dev \
+            libunwind-18-dev \
             libssl-dev \
+            pkg-config \
             python3 \
             python3-pip \
             git \
             wget \
             unzip
+
+          test -f /usr/include/c++/v1/iostream
+          echo "libc++ headers found"
 
       - name: Build Hypersomnia WebAssembly
         run: |
