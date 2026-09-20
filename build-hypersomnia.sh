@@ -85,10 +85,8 @@ source ./emsdk_env.sh
 
 echo "Emscripten:"
 emcc --version
-
 echo "CMake:"
 cmake --version
-
 echo "Ninja:"
 ninja --version
 
@@ -107,7 +105,9 @@ echo "Building Hypersomnia for Web..."
 unset CC
 unset CXX
 
-./cmake/build.sh Release Web
+# Hypersomnia's current CMake enables WASM_BIGINT by default for Web.
+# Emscripten 6.x rejects that legacy flag as a fatal deprecation warning.
+./cmake/build.sh Release Web -DUSE_BIGINT=OFF
 
 BUILD_DIR="$HYPERSOMNIA/build/current"
 
@@ -119,7 +119,6 @@ cmake --build "$BUILD_DIR" --parallel 2
 # --------------------------------------------------
 
 BUILD_DIR="$HYPERSOMNIA/build/current"
-
 echo "Build directory:"
 echo "$BUILD_DIR"
 
@@ -176,4 +175,4 @@ echo "========================================"
 find "$DIST" -type f -print
 
 echo ""
-echo "echo "Hypersomnia WebAssembly Build - Cloudflare"
+echo "Hypersomnia WebAssembly Build complete."
