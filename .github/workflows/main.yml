@@ -37,7 +37,7 @@ jobs:
       - name: Build Hypersomnia WebAssembly
         run: |
           chmod +x build-hypersomnia.sh
-          export CXXFLAGS="-isystem /usr/include/c++/v1 ${CXXFLAGS:-}"
+      
           ./build-hypersomnia.sh
 
       - name: Package itch.io build
