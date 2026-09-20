@@ -100,10 +100,6 @@ find "$REAL_BUILD_DIR" \
     mv "$DIST/Hypersomnia.html" "$DIST/index.html"
 fi
 
-if [ -d "$HYPERSOMNIA/hypersomnia" ]; then
-    cp -R "$HYPERSOMNIA/hypersomnia" "$DIST/"
-fi
-
 echo "Dist contents:"
 find "$DIST" -type f -print
 
