@@ -64,13 +64,17 @@ unset CXX
 ./cmake/build.sh Release Web -DUSE_BIGINT=OFF
 
 BUILD_DIR="$HYPERSOMNIA/build/current"
+REAL_BUILD_DIR="$(readlink -f "$BUILD_DIR")"
 
 echo "Compiling Hypersomnia Web target..."
 cmake --build "$BUILD_DIR" --target Hypersomnia --parallel 2
 
+echo "Resolved build directory:"
+echo "$REAL_BUILD_DIR"
+
 echo "Searching build output..."
 
-find "$BUILD_DIR" \
+find "$REAL_BUILD_DIR" \
     -type f \
     \( \
         -name "*.html" \
@@ -82,7 +86,7 @@ find "$BUILD_DIR" \
 
 echo "Copying Web build to dist..."
 
-find "$BUILD_DIR" \
+find "$REAL_BUILD_DIR" \
     -type f \
     \( \
         -name "*.html" \
