@@ -65,16 +65,12 @@ unset CXX
 
 BUILD_DIR="$HYPERSOMNIA/build/current"
 
-echo "Compiling WebAssembly..."
-cmake --build "$BUILD_DIR" --parallel 2
+echo "Compiling Hypersomnia Web target..."
+cmake --build "$BUILD_DIR" --target Hypersomnia --parallel 2
 
-BUILD_DIR="$HYPERSOMNIA/build/current"
-
-echo "Build directory:"
-echo "$BUILD_DIR"
+echo "Searching build output..."
 
 find "$BUILD_DIR" \
-    -maxdepth 2 \
     -type f \
     \( \
         -name "*.html" \
@@ -99,6 +95,9 @@ find "$BUILD_DIR" \
 if [ -d "$HYPERSOMNIA/hypersomnia" ]; then
     cp -R "$HYPERSOMNIA/hypersomnia" "$DIST/"
 fi
+
+echo "Dist contents:"
+find "$DIST" -type f -print
 
 if ! find "$DIST" -type f \( -name "*.html" -o -name "*.wasm" \) | grep -q .; then
     echo "ERROR: No WebAssembly game files were generated."
