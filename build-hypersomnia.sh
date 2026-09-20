@@ -72,13 +72,14 @@ cmake --build "$BUILD_DIR" --target Hypersomnia --parallel 2
 echo "Resolved build directory:"
 echo "$REAL_BUILD_DIR"
 
-echo "Copying complete Web build to dist..."
+echo "Copying Web runtime to dist..."
 
-cp -R "$REAL_BUILD_DIR"/. "$DIST/"
+cp "$REAL_BUILD_DIR/Hypersomnia.html" "$DIST/index.html"
+cp "$REAL_BUILD_DIR/Hypersomnia.js" "$DIST/"
+cp "$REAL_BUILD_DIR/Hypersomnia.wasm" "$DIST/"
+cp "$REAL_BUILD_DIR/Hypersomnia.data" "$DIST/"
 
-if [ -f "$DIST/Hypersomnia.html" ]; then
-    mv "$DIST/Hypersomnia.html" "$DIST/index.html"
-fi
+cp -R "$REAL_BUILD_DIR/assets" "$DIST/"
 
 echo "Dist contents:"
 find "$DIST" -type f -print
