@@ -96,6 +96,10 @@ find "$REAL_BUILD_DIR" \
     \) \
     -exec cp {} "$DIST/" \;
 
+    if [ -f "$DIST/Hypersomnia.html" ]; then
+    mv "$DIST/Hypersomnia.html" "$DIST/index.html"
+fi
+
 if [ -d "$HYPERSOMNIA/hypersomnia" ]; then
     cp -R "$HYPERSOMNIA/hypersomnia" "$DIST/"
 fi
