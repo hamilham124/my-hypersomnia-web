@@ -6,81 +6,45 @@ echo "========================================"
 echo " Hypersomnia WebAssembly Build"
 echo "========================================"
 
-# --------------------------------------------------
-# Versions
-# --------------------------------------------------
-
 EMSDK_VERSION="latest"
 
-# --------------------------------------------------
-# Directories
-# --------------------------------------------------
-
 ROOT="$(pwd)"
-
 BUILD_ROOT="$ROOT/build"
-
 HYPERSOMNIA="$BUILD_ROOT/Hypersomnia"
-
 EMSDK="$BUILD_ROOT/emsdk"
-
 DIST="$ROOT/dist"
 
-# --------------------------------------------------
-# Clean output
-# --------------------------------------------------
-
 rm -rf "$DIST"
-
 mkdir -p "$BUILD_ROOT"
 mkdir -p "$DIST"
 
-# --------------------------------------------------
-# Clone Hypersomnia
-# --------------------------------------------------
-
 if [ ! -d "$HYPERSOMNIA/.git" ]; then
-
     echo "Cloning Hypersomnia..."
-
     git clone \
         --depth 1 \
         --recurse-submodules \
         https://github.com/TeamHypersomnia/Hypersomnia.git \
         "$HYPERSOMNIA"
-
 else
-
     echo "Hypersomnia already exists."
-
 fi
 
 cd "$HYPERSOMNIA"
 
-# --------------------------------------------------
-# Clone Emscripten
-# --------------------------------------------------
+# The upstream Web configuration currently unconditionally enables
+# the obsolete -sWASM_BIGINT linker flag. Remove that setting because
+# current Emscripten rejects it as a fatal deprecation warning.
+sed -i '/^[[:space:]]*set(USE_BIGINT ON)[[:space:]]*$/d' CMakeLists.txt
 
 if [ ! -d "$EMSDK/.git" ]; then
-
     echo "Cloning Emscripten SDK..."
-
-    git clone \
-        https://github.com/emscripten-core/emsdk.git \
-        "$EMSDK"
-
+    git clone https://github.com/emscripten-core/emsdk.git "$EMSDK"
 fi
 
 cd "$EMSDK"
 
-# --------------------------------------------------
-# Install Emscripten
-# --------------------------------------------------
-
 ./emsdk install "$EMSDK_VERSION"
-
 ./emsdk activate "$EMSDK_VERSION"
-
 source ./emsdk_env.sh
 
 echo "Emscripten:"
@@ -90,23 +54,13 @@ cmake --version
 echo "Ninja:"
 ninja --version
 
-# --------------------------------------------------
-# Return to Hypersomnia
-# --------------------------------------------------
-
 cd "$HYPERSOMNIA"
-
-# --------------------------------------------------
-# Build Hypersomnia Web version
-# --------------------------------------------------
 
 echo "Building Hypersomnia for Web..."
 
 unset CC
 unset CXX
 
-# Hypersomnia's current CMake enables WASM_BIGINT by default for Web.
-# Emscripten 6.x rejects that legacy flag as a fatal deprecation warning.
 ./cmake/build.sh Release Web -DUSE_BIGINT=OFF
 
 BUILD_DIR="$HYPERSOMNIA/build/current"
@@ -114,11 +68,8 @@ BUILD_DIR="$HYPERSOMNIA/build/current"
 echo "Compiling WebAssembly..."
 cmake --build "$BUILD_DIR" --parallel 2
 
-# --------------------------------------------------
-# Locate generated build
-# --------------------------------------------------
-
 BUILD_DIR="$HYPERSOMNIA/build/current"
+
 echo "Build directory:"
 echo "$BUILD_DIR"
 
@@ -133,10 +84,6 @@ find "$BUILD_DIR" \
     \) \
     -print
 
-# --------------------------------------------------
-# Copy Web build
-# --------------------------------------------------
-
 echo "Copying Web build to dist..."
 
 find "$BUILD_DIR" \
@@ -149,23 +96,14 @@ find "$BUILD_DIR" \
     \) \
     -exec cp {} "$DIST/" \;
 
-# Copy Hypersomnia's game resources.
 if [ -d "$HYPERSOMNIA/hypersomnia" ]; then
     cp -R "$HYPERSOMNIA/hypersomnia" "$DIST/"
 fi
-
-# --------------------------------------------------
-# Fail if no WebAssembly build was produced
-# --------------------------------------------------
 
 if ! find "$DIST" -type f \( -name "*.html" -o -name "*.wasm" \) | grep -q .; then
     echo "ERROR: No WebAssembly game files were generated."
     exit 1
 fi
-
-# --------------------------------------------------
-# Verify
-# --------------------------------------------------
 
 echo ""
 echo "========================================"
