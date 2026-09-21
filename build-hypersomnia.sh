@@ -36,6 +36,10 @@ cd "$HYPERSOMNIA"
 # current Emscripten rejects it as a fatal deprecation warning.
 sed -i '/^[[:space:]]*set(USE_BIGINT ON)[[:space:]]*$/d' CMakeLists.txt
 
+# Experimental single-threaded Web build: remove the upstream pthread linker flags so
+# the resulting page does not require SharedArrayBuffer / cross-origin isolation.
+sed -i '/USE_PTHREADS=1/d' CMakeLists.txt
+
 if [ ! -d "$EMSDK/.git" ]; then
     echo "Cloning Emscripten SDK..."
     git clone https://github.com/emscripten-core/emsdk.git "$EMSDK"
