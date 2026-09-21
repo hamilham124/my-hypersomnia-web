@@ -40,6 +40,11 @@ sed -i '/^[[:space:]]*set(USE_BIGINT ON)[[:space:]]*$/d' CMakeLists.txt
 # the resulting page does not require SharedArrayBuffer / cross-origin isolation.
 sed -i '/USE_PTHREADS=1/d' CMakeLists.txt
 
+# Keep the low-end Web font scale at 1.0 through 1080p instead of
+# enlarging fonts to 1.333x at 768p. This matches our 1366x768
+# Chromebook target and prevents oversized/overlapping UI text.
+sed -i 's/return scale \\* std::min(1.333333333f, ratio);/return scale * std::min(1.0f, ratio);/' src/work.cpp
+
 if [ ! -d "$EMSDK/.git" ]; then
     echo "Cloning Emscripten SDK..."
     git clone https://github.com/emscripten-core/emsdk.git "$EMSDK"
