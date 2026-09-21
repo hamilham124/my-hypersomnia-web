@@ -50,3 +50,11 @@ jobs:
         with:
           name: hypersomnia-web
           path: dist
+
+      - name: Publish Web runtime branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: web
+          publish_dir: ./dist
+          force_orphan: true
