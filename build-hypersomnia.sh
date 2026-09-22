@@ -5,7 +5,7 @@ set -e
 echo "========================================"
 echo " Hypersomnia WebAssembly Build"
 echo " SINGLE-THREADED WEB BUILD"
-echo " FULLSCREEN + POINTER LOCK SUPPORT"
+echo " BROWSER FULLSCREEN + POINTER LOCK SUPPORT"
 echo "========================================"
 
 EMSDK_VERSION="latest"
@@ -158,7 +158,6 @@ if "-sFULLSCREEN=1" not in text:
         insert_at,
         'set(CMAKE_EXE_LINKER_FLAGS '
         '"${CMAKE_EXE_LINKER_FLAGS} '
-        '-sFULLSCREEN=1 '
         '-sHTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS=1 '
         '-sALLOW_MEMORY_GROWTH=1")'
     )
@@ -216,7 +215,7 @@ echo " Configuring Hypersomnia Web"
 echo "========================================"
 
 echo "Browser features:"
-echo "  Fullscreen: ENABLED"
+echo "  Fullscreen: ENABLED through browser/SDL runtime"
 echo "  Pointer lock: ENABLED through browser/SDL runtime"
 echo "  Deferred user-sensitive requests: ENABLED"
 echo "  Memory growth: ENABLED"
@@ -275,12 +274,6 @@ else
 fi
 
 echo "Checking browser feature flags..."
-
-if printf '%s\n' "$NINJA_COMMANDS" | grep -q -- '-sFULLSCREEN=1'; then
-    echo "PASS: FULLSCREEN enabled."
-else
-    echo "WARNING: FULLSCREEN flag not visible in Ninja command list."
-fi
 
 if printf '%s\n' "$NINJA_COMMANDS" | grep -q     -- '-sHTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS=1'; then
 
@@ -389,7 +382,7 @@ echo ""
 echo "========================================"
 echo " WebAssembly build complete"
 echo "========================================"
-echo "Fullscreen: ENABLED"
+echo "Fullscreen: ENABLED through SDL/browser runtime"
 echo "Pointer lock: ENABLED through SDL/browser runtime"
 echo "Deferred user-sensitive requests: ENABLED"
 echo "Memory growth: ENABLED"
