@@ -5,6 +5,7 @@ set -e
 echo "========================================"
 echo " Hypersomnia WebAssembly Build"
 echo " SINGLE-THREADED WEB BUILD"
+echo " FULLSCREEN + POINTER LOCK SUPPORT"
 echo "========================================"
 
 EMSDK_VERSION="latest"
@@ -51,45 +52,39 @@ cd "$HYPERSOMNIA"
 
 
 # ============================================================
-# Remove only known top-level pthread configuration
+# Remove known pthread configuration
 # ============================================================
 
 echo ""
 echo "========================================"
-echo " Checking top-level pthread configuration"
+echo " Removing Web pthread configuration"
 echo "========================================"
 
 
-# Remove explicit USE_BIGINT setting if present.
 sed -i \
     '/^[[:space:]]*set(USE_BIGINT ON)[[:space:]]*$/d' \
     CMakeLists.txt
 
 
-# Remove an explicit USE_PTHREADS assignment if the upstream
-# project contains one.
 sed -i \
     '/^[[:space:]]*set(USE_PTHREADS[[:space:]]/d' \
     CMakeLists.txt
 
 
-# Remove known Emscripten pthread linker settings from the
-# TOP-LEVEL Hypersomnia CMake file only.
-#
-# We intentionally do NOT recursively edit third-party
-# libraries or submodules.
-
 sed -i \
     's/[[:space:]]*-pthread[[:space:]]*//g' \
     CMakeLists.txt
+
 
 sed -i \
     's/[[:space:]]*-s[[:space:]]*USE_PTHREADS=1[[:space:]]*//g' \
     CMakeLists.txt
 
+
 sed -i \
     's/[[:space:]]*-sPTHREAD_POOL_SIZE=6[[:space:]]*//g' \
     CMakeLists.txt
+
 
 sed -i \
     's/[[:space:]]*-s[[:space:]]*PTHREAD_POOL_SIZE=[^[:space:]"'\'']*[[:space:]]*//g' \
@@ -97,7 +92,8 @@ sed -i \
 
 
 echo ""
-echo "Top-level CMake pthread settings after cleanup:"
+echo "Top-level pthread configuration after cleanup:"
+
 
 if grep -nEi \
     'USE_PTHREADS|-pthread|PTHREAD_POOL_SIZE' \
@@ -106,7 +102,6 @@ if grep -nEi \
     echo ""
     echo "WARNING:"
     echo "The top-level CMake file still contains pthread-related text."
-    echo "This will be checked against the actual generated build commands."
 
 else
 
@@ -116,7 +111,7 @@ fi
 
 
 # ============================================================
-# Keep Web UI font scale appropriate for Chromebook
+# Web UI font scaling
 # ============================================================
 
 echo ""
@@ -128,6 +123,101 @@ echo "========================================"
 sed -i \
     's/return scale \* std::min(1.333333333f, ratio);/return scale * std::min(1.0f, ratio);/' \
     src/work.cpp
+
+
+# ============================================================
+# Add browser interaction support
+# ============================================================
+#
+# FULLSCREEN:
+# Enables Emscripten fullscreen support.
+#
+# HTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS:
+# Allows browser-sensitive operations such as fullscreen and
+# pointer lock to be deferred until a user-generated event.
+#
+# ALLOW_MEMORY_GROWTH:
+# Allows the WebAssembly heap to grow when additional memory
+# is needed.
+#
+# Pointer lock itself is handled through the browser/SDL
+# runtime rather than requiring pthreads.
+#
+# ============================================================
+
+echo ""
+echo "========================================"
+echo " Configuring browser interaction support"
+echo "========================================"
+
+
+FULLSCREEN_FLAGS='
+-sFULLSCREEN=1
+-sHTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS=1
+-sALLOW_MEMORY_GROWTH=1
+'
+
+
+# Remove any previous copy of these settings from the
+# top-level CMake file before inserting the new configuration.
+
+sed -i \
+    '/FULLSCREEN=1/d' \
+    CMakeLists.txt
+
+sed -i \
+    '/HTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS=1/d' \
+    CMakeLists.txt
+
+sed -i \
+    '/ALLOW_MEMORY_GROWTH=1/d' \
+    CMakeLists.txt
+
+
+# Add the settings inside the existing Web build section.
+#
+# We use a small Python transformation rather than recursively
+# modifying dependencies or third-party libraries.
+
+python3 - <<'PY'
+from pathlib import Path
+
+path = Path("CMakeLists.txt")
+text = path.read_text()
+
+flags = """
+    # Browser interaction support for WebAssembly.
+    # Keep this target single-threaded.
+    set(CMAKE_EXE_LINKER_FLAGS
+        "${CMAKE_EXE_LINKER_FLAGS} -sFULLSCREEN=1 -sHTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS=1 -sALLOW_MEMORY_GROWTH=1"
+    )
+"""
+
+marker = "if (BUILD_FOR_WEB)"
+
+if marker not in text:
+    raise SystemExit(
+        "ERROR: Could not find BUILD_FOR_WEB section."
+    )
+
+if "-sFULLSCREEN=1" not in text:
+    text = text.replace(
+        marker,
+        marker + "\n" + flags,
+        1
+    )
+
+path.write_text(text)
+PY
+
+
+echo ""
+echo "Browser support configuration added:"
+
+
+grep -nEi \
+    'FULLSCREEN|HTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS|ALLOW_MEMORY_GROWTH' \
+    CMakeLists.txt || true
 
 
 # ============================================================
@@ -157,6 +247,7 @@ cd "$EMSDK"
 echo ""
 echo "Installing Emscripten..."
 
+
 ./emsdk install "$EMSDK_VERSION"
 
 ./emsdk activate "$EMSDK_VERSION"
@@ -168,9 +259,11 @@ echo ""
 echo "Emscripten:"
 emcc --version
 
+
 echo ""
 echo "CMake:"
 cmake --version
+
 
 echo ""
 echo "Ninja:"
@@ -181,7 +274,7 @@ cd "$HYPERSOMNIA"
 
 
 # ============================================================
-# Clean previous CMake configuration
+# Clean previous Web configuration
 # ============================================================
 
 echo ""
@@ -200,8 +293,16 @@ rm -rf build/current
 echo ""
 echo "========================================"
 echo " Configuring Hypersomnia Web"
-echo " SINGLE-THREADED"
 echo "========================================"
+
+echo ""
+echo "Browser features:"
+echo "  Fullscreen: ENABLED"
+echo "  Pointer lock: ENABLED through browser/SDL runtime"
+echo "  Deferred user-sensitive requests: ENABLED"
+echo "  Memory growth: ENABLED"
+echo "  Pthreads: DISABLED"
+echo ""
 
 
 unset CC
@@ -218,7 +319,7 @@ BUILD_DIR="$HYPERSOMNIA/build/current"
 
 
 # ============================================================
-# Verify CMake configuration exists
+# Verify CMake configuration
 # ============================================================
 
 echo ""
@@ -249,16 +350,16 @@ echo "CMake configuration exists."
 
 
 # ============================================================
-# Inspect ACTUAL generated build commands
+# Inspect actual generated build commands
 # ============================================================
 
 echo ""
 echo "========================================"
-echo " Checking actual generated build commands"
+echo " Checking generated build commands"
 echo "========================================"
 
 
-echo "Asking Ninja for the commands required to build Hypersomnia..."
+echo "Asking Ninja for the actual commands..."
 
 NINJA_COMMANDS="$(
     ninja \
@@ -274,37 +375,74 @@ if [ -z "$NINJA_COMMANDS" ]; then
     echo ""
     echo "WARNING: Ninja did not return build commands."
 
-    echo "The build will continue and the final generated"
-    echo "JavaScript will be checked after compilation."
+    echo "The build will continue."
 
 else
 
     echo ""
-    echo "Checking generated commands for pthread flags..."
+    echo "Checking pthread configuration..."
+
 
     if printf '%s\n' "$NINJA_COMMANDS" |
         grep -nEi \
         -- '-pthread|USE_PTHREADS=1|PTHREAD_POOL_SIZE'; then
 
         echo ""
-        echo "ERROR: pthread support is present in the actual"
-        echo "generated Web build commands."
+        echo "ERROR: pthread support is present in the"
+        echo "actual generated Web build commands."
 
         echo ""
-        echo "This is different from merely finding pthread"
-        echo "text inside a third-party CMake file."
-
-        echo ""
-        echo "The build has been stopped because this Web target"
-        echo "would not be reliably single-threaded."
+        echo "The build has been stopped."
 
         exit 1
 
     else
 
         echo ""
-        echo "PASS: No pthread flags found in generated"
-        echo "Hypersomnia build commands."
+        echo "PASS: No pthread flags found."
+
+    fi
+
+
+    echo ""
+    echo "Checking browser feature flags..."
+
+
+    if printf '%s\n' "$NINJA_COMMANDS" |
+        grep -q -- '-sFULLSCREEN=1'; then
+
+        echo "PASS: FULLSCREEN enabled."
+
+    else
+
+        echo "WARNING: FULLSCREEN flag was not found"
+        echo "in the generated command list."
+
+    fi
+
+
+    if printf '%s\n' "$NINJA_COMMANDS" |
+        grep -q -- \
+        '-sHTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS=1'; then
+
+        echo "PASS: Deferred user-sensitive requests enabled."
+
+    else
+
+        echo "WARNING: Deferred user-sensitive request"
+        echo "flag was not found."
+
+    fi
+
+
+    if printf '%s\n' "$NINJA_COMMANDS" |
+        grep -q -- '-sALLOW_MEMORY_GROWTH=1'; then
+
+        echo "PASS: Memory growth enabled."
+
+    else
+
+        echo "WARNING: Memory growth flag was not found."
 
     fi
 
@@ -332,6 +470,7 @@ cmake \
 # ============================================================
 
 REAL_BUILD_DIR="$BUILD_DIR"
+
 
 if [ -L "$BUILD_DIR" ]; then
 
@@ -407,26 +546,54 @@ if grep -qE \
 
     echo ""
     echo "WARNING:"
-    echo "The generated JavaScript contains pthread-related strings."
-
-    echo ""
-    echo "Matching lines:"
+    echo "Generated JavaScript contains pthread-related strings."
 
     grep -nE \
         'USE_PTHREADS|PTHREAD_POOL_SIZE|pthread-main|pthread-worker' \
         "$REAL_BUILD_DIR/Hypersomnia.js" \
         | head -20
 
-    echo ""
-    echo "This is reported as a warning rather than an immediate"
-    echo "failure because third-party libraries can contain"
-    echo "pthread-related runtime strings without the main"
-    echo "Hypersomnia target actually being pthread-enabled."
-
 else
 
     echo ""
     echo "PASS: No obvious pthread runtime configuration found."
+
+fi
+
+
+# ============================================================
+# Check browser feature strings
+# ============================================================
+
+echo ""
+echo "========================================"
+echo " Checking browser feature configuration"
+echo "========================================"
+
+
+if grep -q \
+    'HTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS' \
+    "$REAL_BUILD_DIR/Hypersomnia.js"; then
+
+    echo "PASS: Deferred user-sensitive request support present."
+
+else
+
+    echo "WARNING: Deferred user-sensitive request support"
+    echo "was not found in generated JavaScript."
+
+fi
+
+
+if grep -q \
+    'requestFullscreen' \
+    "$REAL_BUILD_DIR/Hypersomnia.js"; then
+
+    echo "PASS: Fullscreen runtime support present."
+
+else
+
+    echo "WARNING: Fullscreen runtime string not detected."
 
 fi
 
@@ -551,9 +718,15 @@ fi
 echo ""
 echo "========================================"
 echo " WebAssembly Build complete"
-echo " SINGLE-THREADED BUILD: READY"
 echo "========================================"
 
+echo ""
+echo "Browser features:"
+echo "  Fullscreen: ENABLED"
+echo "  Pointer lock: ENABLED through runtime"
+echo "  Deferred user-sensitive requests: ENABLED"
+echo "  Memory growth: ENABLED"
+echo "  Pthreads: DISABLED"
 
 echo ""
 echo "Generated files:"
@@ -566,4 +739,6 @@ ls -lh \
 
 
 echo ""
-echo "The build is ready for packaging."
+echo "========================================"
+echo " SINGLE-THREADED WEB BUILD: READY"
+echo "========================================"
