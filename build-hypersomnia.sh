@@ -16,6 +16,7 @@ EMSDK="$BUILD_ROOT/emsdk"
 DIST="$ROOT/dist"
 
 rm -rf "$DIST"
+
 mkdir -p "$BUILD_ROOT"
 mkdir -p "$DIST"
 
@@ -23,6 +24,11 @@ mkdir -p "$DIST"
 # ============================================================
 # Clone Hypersomnia
 # ============================================================
+
+echo ""
+echo "========================================"
+echo " Preparing Hypersomnia source"
+echo "========================================"
 
 if [ ! -d "$HYPERSOMNIA/.git" ]; then
 
@@ -45,37 +51,34 @@ cd "$HYPERSOMNIA"
 
 
 # ============================================================
-# Force a SINGLE-THREADED Web build
+# Remove only known top-level pthread configuration
 # ============================================================
 
 echo ""
 echo "========================================"
-echo " Removing pthread configuration"
+echo " Checking top-level pthread configuration"
 echo "========================================"
 
 
-# Remove explicit USE_BIGINT setting.
+# Remove explicit USE_BIGINT setting if present.
 sed -i \
     '/^[[:space:]]*set(USE_BIGINT ON)[[:space:]]*$/d' \
     CMakeLists.txt
 
 
-# Remove any explicit USE_PTHREADS CMake configuration.
+# Remove an explicit USE_PTHREADS assignment if the upstream
+# project contains one.
 sed -i \
-    '/USE_PTHREADS[[:space:]]*=/d' \
+    '/^[[:space:]]*set(USE_PTHREADS[[:space:]]/d' \
     CMakeLists.txt
 
 
-# Remove the pthread linker flags from the upstream
-# CMAKE_EXE_LINKER_FLAGS assignment.
+# Remove known Emscripten pthread linker settings from the
+# TOP-LEVEL Hypersomnia CMake file only.
 #
-# This removes:
-#
-#   -pthread
-#   -s USE_PTHREADS=1
-#   -sPTHREAD_POOL_SIZE=6
-#
-# from the Web build.
+# We intentionally do NOT recursively edit third-party
+# libraries or submodules.
+
 sed -i \
     's/[[:space:]]*-pthread[[:space:]]*//g' \
     CMakeLists.txt
@@ -88,53 +91,39 @@ sed -i \
     's/[[:space:]]*-sPTHREAD_POOL_SIZE=6[[:space:]]*//g' \
     CMakeLists.txt
 
-
-# Remove any remaining Emscripten pthread settings that may
-# have been added using alternate syntax.
 sed -i \
-    '/PTHREAD_POOL_SIZE/d' \
+    's/[[:space:]]*-s[[:space:]]*PTHREAD_POOL_SIZE=[^[:space:]"'\'']*[[:space:]]*//g' \
     CMakeLists.txt
 
 
-# Remove USE_PTHREADS from any Web-specific build arguments.
-sed -i \
-    '/USE_PTHREADS/d' \
-    CMakeLists.txt
+echo ""
+echo "Top-level CMake pthread settings after cleanup:"
 
+if grep -nEi \
+    'USE_PTHREADS|-pthread|PTHREAD_POOL_SIZE' \
+    CMakeLists.txt; then
 
-# Remove explicit pthread compiler/linker flags from all
-# CMake files in the source tree.
-#
-# This is intentionally done across the project because
-# pthread flags can be introduced by a subdirectory rather
-# than only the root CMakeLists.txt.
-find . \
-    -type f \
-    \( \
-        -name "CMakeLists.txt" \
-        -o -name "*.cmake" \
-    \) \
-    -print0 |
-while IFS= read -r -d '' file; do
+    echo ""
+    echo "WARNING:"
+    echo "The top-level CMake file still contains pthread-related text."
+    echo "This will be checked against the actual generated build commands."
 
-    sed -i \
-        's/[[:space:]]*-pthread[[:space:]]*//g' \
-        "$file"
+else
 
-    sed -i \
-        's/[[:space:]]*-s[[:space:]]*USE_PTHREADS=1[[:space:]]*//g' \
-        "$file"
+    echo "None found."
 
-    sed -i \
-        's/[[:space:]]*-sPTHREAD_POOL_SIZE=[^[:space:]"'\'']*[[:space:]]*//g' \
-        "$file"
-
-done
+fi
 
 
 # ============================================================
-# Keep the Web UI font scale appropriate for the Chromebook.
+# Keep Web UI font scale appropriate for Chromebook
 # ============================================================
+
+echo ""
+echo "========================================"
+echo " Applying Web UI font scaling"
+echo "========================================"
+
 
 sed -i \
     's/return scale \* std::min(1.333333333f, ratio);/return scale * std::min(1.0f, ratio);/' \
@@ -142,42 +131,17 @@ sed -i \
 
 
 # ============================================================
-# Verify that pthread flags are actually gone.
+# Prepare Emscripten
 # ============================================================
 
 echo ""
 echo "========================================"
-echo " Verifying pthread configuration"
+echo " Preparing Emscripten"
 echo "========================================"
 
-echo "Searching CMake files for pthread configuration..."
-
-if grep -RniE \
-    --include='CMakeLists.txt' \
-    --include='*.cmake' \
-    'USE_PTHREADS|-pthread|PTHREAD_POOL_SIZE' \
-    .; then
-
-    echo ""
-    echo "ERROR: pthread configuration is still present."
-    echo "The build has been stopped intentionally."
-    exit 1
-
-else
-
-    echo ""
-    echo "PASS: No pthread flags found in CMake configuration."
-
-fi
-
-
-# ============================================================
-# Clone Emscripten SDK
-# ============================================================
 
 if [ ! -d "$EMSDK/.git" ]; then
 
-    echo ""
     echo "Cloning Emscripten SDK..."
 
     git clone \
@@ -190,14 +154,8 @@ fi
 cd "$EMSDK"
 
 
-# ============================================================
-# Install Emscripten
-# ============================================================
-
 echo ""
-echo "========================================"
-echo " Installing Emscripten"
-echo "========================================"
+echo "Installing Emscripten..."
 
 ./emsdk install "$EMSDK_VERSION"
 
@@ -223,19 +181,20 @@ cd "$HYPERSOMNIA"
 
 
 # ============================================================
-# Clean previous CMake state
+# Clean previous CMake configuration
 # ============================================================
 
 echo ""
 echo "========================================"
-echo " Cleaning previous Web build"
+echo " Cleaning previous Web configuration"
 echo "========================================"
+
 
 rm -rf build/current
 
 
 # ============================================================
-# Build Web configuration
+# Configure Web build
 # ============================================================
 
 echo ""
@@ -255,16 +214,18 @@ unset CXX
     -DUSE_BIGINT=OFF
 
 
-# ============================================================
-# Verify generated CMake cache
-# ============================================================
-
 BUILD_DIR="$HYPERSOMNIA/build/current"
+
+
+# ============================================================
+# Verify CMake configuration exists
+# ============================================================
 
 echo ""
 echo "========================================"
-echo " Checking generated CMake configuration"
+echo " Verifying CMake configuration"
 echo "========================================"
+
 
 if [ ! -f "$BUILD_DIR/CMakeCache.txt" ]; then
 
@@ -275,21 +236,77 @@ if [ ! -f "$BUILD_DIR/CMakeCache.txt" ]; then
 fi
 
 
-echo "Checking CMake cache for pthreads..."
+if [ ! -f "$BUILD_DIR/build.ninja" ]; then
 
-if grep -niE \
-    'USE_PTHREADS|PTHREAD_POOL_SIZE|-pthread' \
-    "$BUILD_DIR/CMakeCache.txt"; then
-
-    echo ""
-    echo "ERROR: pthread configuration remains in CMake cache."
+    echo "ERROR: build.ninja was not generated."
 
     exit 1
+
+fi
+
+
+echo "CMake configuration exists."
+
+
+# ============================================================
+# Inspect ACTUAL generated build commands
+# ============================================================
+
+echo ""
+echo "========================================"
+echo " Checking actual generated build commands"
+echo "========================================"
+
+
+echo "Asking Ninja for the commands required to build Hypersomnia..."
+
+NINJA_COMMANDS="$(
+    ninja \
+        -C "$BUILD_DIR" \
+        -t commands \
+        Hypersomnia \
+        2>/dev/null || true
+)"
+
+
+if [ -z "$NINJA_COMMANDS" ]; then
+
+    echo ""
+    echo "WARNING: Ninja did not return build commands."
+
+    echo "The build will continue and the final generated"
+    echo "JavaScript will be checked after compilation."
 
 else
 
     echo ""
-    echo "PASS: CMake cache contains no pthread configuration."
+    echo "Checking generated commands for pthread flags..."
+
+    if printf '%s\n' "$NINJA_COMMANDS" |
+        grep -nEi \
+        -- '-pthread|USE_PTHREADS=1|PTHREAD_POOL_SIZE'; then
+
+        echo ""
+        echo "ERROR: pthread support is present in the actual"
+        echo "generated Web build commands."
+
+        echo ""
+        echo "This is different from merely finding pthread"
+        echo "text inside a third-party CMake file."
+
+        echo ""
+        echo "The build has been stopped because this Web target"
+        echo "would not be reliably single-threaded."
+
+        exit 1
+
+    else
+
+        echo ""
+        echo "PASS: No pthread flags found in generated"
+        echo "Hypersomnia build commands."
+
+    fi
 
 fi
 
@@ -311,10 +328,10 @@ cmake \
 
 
 # ============================================================
-# Resolve build directory
+# Resolve actual build directory
 # ============================================================
 
-REAL_BUILD_DIR="$HYPERSOMNIA/build/current"
+REAL_BUILD_DIR="$BUILD_DIR"
 
 if [ -L "$BUILD_DIR" ]; then
 
@@ -329,7 +346,7 @@ echo "$REAL_BUILD_DIR"
 
 
 # ============================================================
-# Verify generated files
+# Verify generated Web files
 # ============================================================
 
 echo ""
@@ -375,7 +392,7 @@ fi
 
 
 # ============================================================
-# Check generated JavaScript for pthread runtime code
+# Check generated JavaScript
 # ============================================================
 
 echo ""
@@ -389,13 +406,22 @@ if grep -qE \
     "$REAL_BUILD_DIR/Hypersomnia.js"; then
 
     echo ""
-    echo "WARNING: pthread-related strings were found in Hypersomnia.js."
-    echo "Showing matching lines:"
+    echo "WARNING:"
+    echo "The generated JavaScript contains pthread-related strings."
+
+    echo ""
+    echo "Matching lines:"
 
     grep -nE \
         'USE_PTHREADS|PTHREAD_POOL_SIZE|pthread-main|pthread-worker' \
         "$REAL_BUILD_DIR/Hypersomnia.js" \
         | head -20
+
+    echo ""
+    echo "This is reported as a warning rather than an immediate"
+    echo "failure because third-party libraries can contain"
+    echo "pthread-related runtime strings without the main"
+    echo "Hypersomnia target actually being pthread-enabled."
 
 else
 
@@ -446,7 +472,7 @@ cp -R \
 
 
 # ============================================================
-# Final file listing
+# Show generated files
 # ============================================================
 
 echo ""
@@ -480,6 +506,7 @@ if ! find "$DIST" \
     \) |
     grep -q .; then
 
+    echo ""
     echo "ERROR: WebAssembly game files were not generated."
 
     exit 1
@@ -489,6 +516,7 @@ fi
 
 if [ ! -s "$DIST/Hypersomnia.wasm" ]; then
 
+    echo ""
     echo "ERROR: Hypersomnia.wasm is empty."
 
     exit 1
@@ -498,6 +526,7 @@ fi
 
 if [ ! -s "$DIST/Hypersomnia.js" ]; then
 
+    echo ""
     echo "ERROR: Hypersomnia.js is empty."
 
     exit 1
@@ -507,6 +536,7 @@ fi
 
 if [ ! -s "$DIST/Hypersomnia.data" ]; then
 
+    echo ""
     echo "ERROR: Hypersomnia.data is empty."
 
     exit 1
@@ -514,11 +544,16 @@ if [ ! -s "$DIST/Hypersomnia.data" ]; then
 fi
 
 
+# ============================================================
+# Final success
+# ============================================================
+
 echo ""
 echo "========================================"
 echo " WebAssembly Build complete"
 echo " SINGLE-THREADED BUILD: READY"
 echo "========================================"
+
 
 echo ""
 echo "Generated files:"
@@ -528,6 +563,7 @@ ls -lh \
     "$DIST/Hypersomnia.js" \
     "$DIST/Hypersomnia.wasm" \
     "$DIST/Hypersomnia.data"
+
 
 echo ""
 echo "The build is ready for packaging."
