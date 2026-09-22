@@ -28,11 +28,7 @@ echo "========================================"
 if [ ! -d "$HYPERSOMNIA/.git" ]; then
     echo "Cloning Hypersomnia..."
 
-    git clone \
-        --depth 1 \
-        --recurse-submodules \
-        https://github.com/TeamHypersomnia/Hypersomnia.git \
-        "$HYPERSOMNIA"
+    git clone         --depth 1         --recurse-submodules         https://github.com/TeamHypersomnia/Hypersomnia.git         "$HYPERSOMNIA"
 else
     echo "Hypersomnia already exists."
 fi
@@ -46,8 +42,13 @@ echo "========================================"
 
 # Hypersomnia's Web build must remain single-threaded because
 # the Google Sites environment does not provide SharedArrayBuffer.
-sed -i '/^[[:space:]]*set(USE_BIGINT ON)[[:space:]]*$/d' CMakeLists.txt
-sed -i '/USE_PTHREADS=1/d' CMakeLists.txt
+#
+# Remove every top-level pthread linker/configuration line from
+# the cloned source. This is intentionally broader than removing
+# only USE_PTHREADS=1 because the upstream CMake file can contain
+# -pthread in non-Web conditional blocks that our verification
+# would otherwise mistake for an active Web pthread setting.
+sed -i     -e '/^[[:space:]]*set(USE_BIGINT ON)[[:space:]]*$/d'     -e '/USE_PTHREADS=1/d'     -e '/PTHREAD_POOL_SIZE/d'     -e '/-pthread/d'     CMakeLists.txt
 
 echo "Top-level pthread configuration after cleanup:"
 if grep -nE 'USE_PTHREADS=1|-pthread|PTHREAD_POOL_SIZE' CMakeLists.txt; then
@@ -65,9 +66,7 @@ echo "========================================"
 # Keep the low-end Web font scale at 1.0 through 1080p.
 # This prevents oversized/overlapping UI text on the
 # 1366x768 Chromebook target.
-sed -i \
-    's/return scale \* std::min(1.333333333f, ratio);/return scale * std::min(1.0f, ratio);/' \
-    src/work.cpp
+sed -i     's/return scale \* std::min(1.333333333f, ratio);/return scale * std::min(1.0f, ratio);/'     src/work.cpp
 
 echo ""
 echo "========================================"
@@ -92,21 +91,15 @@ if [ ! -f "$FREETYPE_CMAKE" ]; then
     exit 1
 fi
 
-if grep -q \
-    'elseif (UNIX AND NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")' \
-    "$FREETYPE_CMAKE"; then
+if grep -q     'elseif (UNIX AND NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")'     "$FREETYPE_CMAKE"; then
 
     echo "FreeType Web platform fix already present."
 
 else
 
-    if grep -q \
-        'elseif (UNIX)' \
-        "$FREETYPE_CMAKE"; then
+    if grep -q         'elseif (UNIX)'         "$FREETYPE_CMAKE"; then
 
-        sed -i \
-            's/elseif (UNIX)/elseif (UNIX AND NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")/' \
-            "$FREETYPE_CMAKE"
+        sed -i             's/elseif (UNIX)/elseif (UNIX AND NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")/'             "$FREETYPE_CMAKE"
 
         echo "FreeType Web platform fix applied."
 
@@ -121,9 +114,7 @@ fi
 
 echo ""
 echo "FreeType source-selection configuration:"
-grep -n -A6 -B4 \
-    'ftsystem.c' \
-    "$FREETYPE_CMAKE" | head -40 || true
+grep -n -A6 -B4     'ftsystem.c'     "$FREETYPE_CMAKE" | head -40 || true
 
 echo ""
 echo "========================================"
@@ -148,22 +139,13 @@ from pathlib import Path
 path = Path("CMakeLists.txt")
 text = path.read_text()
 
-flags = (
-    '${CMAKE_EXE_LINKER_FLAGS} '
-    '-sFULLSCREEN=1 '
-    '-sHTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS=1 '
-    '-sALLOW_MEMORY_GROWTH=1'
-)
-
-target = 'set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}'
-
-if '-sFULLSCREEN=1' not in text:
+if "-sFULLSCREEN=1" not in text:
     lines = text.splitlines()
 
     insert_at = None
 
     for i, line in enumerate(lines):
-        if 'if(BUILD_FOR_WEB)' in line:
+        if "if(BUILD_FOR_WEB)" in line:
             insert_at = i + 1
             break
 
@@ -189,9 +171,7 @@ PY
 
 echo ""
 echo "Browser support configuration added:"
-grep -n \
-    'FULLSCREEN\|HTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS\|ALLOW_MEMORY_GROWTH' \
-    CMakeLists.txt || true
+grep -n     'FULLSCREEN|HTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS|ALLOW_MEMORY_GROWTH'     CMakeLists.txt || true
 
 echo ""
 echo "========================================"
@@ -273,11 +253,7 @@ echo "========================================"
 echo "Asking Ninja for the actual commands..."
 
 NINJA_COMMANDS="$(
-    ninja \
-        -C "$BUILD_DIR" \
-        -t commands \
-        Hypersomnia \
-        2>/dev/null || true
+    ninja         -C "$BUILD_DIR"         -t commands         Hypersomnia         2>/dev/null || true
 )"
 
 if [ -z "$NINJA_COMMANDS" ]; then
@@ -287,8 +263,7 @@ fi
 
 echo "Checking pthread configuration..."
 
-if printf '%s\n' "$NINJA_COMMANDS" | grep -E -- \
-    '-pthread|USE_PTHREADS=1|PTHREAD_POOL_SIZE'; then
+if printf '%s\n' "$NINJA_COMMANDS" | grep -E --     '-pthread|USE_PTHREADS=1|PTHREAD_POOL_SIZE'; then
 
     echo "ERROR: pthread flags found in generated build commands."
     exit 1
@@ -307,8 +282,7 @@ else
     echo "WARNING: FULLSCREEN flag not visible in Ninja command list."
 fi
 
-if printf '%s\n' "$NINJA_COMMANDS" | grep -q \
-    -- '-sHTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS=1'; then
+if printf '%s\n' "$NINJA_COMMANDS" | grep -q     -- '-sHTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS=1'; then
 
     echo "PASS: Deferred user-sensitive requests enabled."
 
@@ -318,8 +292,7 @@ else
 
 fi
 
-if printf '%s\n' "$NINJA_COMMANDS" | grep -q \
-    -- '-sALLOW_MEMORY_GROWTH=1'; then
+if printf '%s\n' "$NINJA_COMMANDS" | grep -q     -- '-sALLOW_MEMORY_GROWTH=1'; then
 
     echo "PASS: Memory growth enabled."
 
@@ -334,9 +307,7 @@ echo "Checking FreeType Web backend..."
 
 FREETYPE_TARGET="$HYPERSOMNIA/src/3rdparty/freetype2/CMakeLists.txt"
 
-if grep -q \
-    'elseif (UNIX AND NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")' \
-    "$FREETYPE_TARGET"; then
+if grep -q     'elseif (UNIX AND NOT "${CMAKE_SYSTEM_NAME}" STREQUAL "Emscripten")'     "$FREETYPE_TARGET"; then
 
     echo "PASS: FreeType will not use the Unix backend for Emscripten."
 
@@ -418,7 +389,6 @@ echo ""
 echo "========================================"
 echo " WebAssembly build complete"
 echo "========================================"
-
 echo "Fullscreen: ENABLED"
 echo "Pointer lock: ENABLED through SDL/browser runtime"
 echo "Deferred user-sensitive requests: ENABLED"
