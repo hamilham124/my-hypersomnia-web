@@ -121,10 +121,12 @@ echo "========================================"
 echo " Configuring browser interaction support"
 echo "========================================"
 
-# Add browser interaction flags to the Web linker configuration.
+# Add supported browser interaction flags to the Web linker configuration.
 #
-# FULLSCREEN:
-# Enables Emscripten fullscreen support.
+# IMPORTANT:
+# Emscripten does not have a -sFULLSCREEN setting. Fullscreen and
+# pointer lock are provided by the HTML5/browser APIs and the
+# application's SDL/browser runtime.
 #
 # HTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS:
 # Allows fullscreen/pointer-lock requests to be deferred until
@@ -139,7 +141,7 @@ from pathlib import Path
 path = Path("CMakeLists.txt")
 text = path.read_text()
 
-if "-sFULLSCREEN=1" not in text:
+if "-sHTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS=1" not in text:
     lines = text.splitlines()
 
     insert_at = None
@@ -170,7 +172,7 @@ PY
 
 echo ""
 echo "Browser support configuration added:"
-grep -n     'FULLSCREEN|HTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS|ALLOW_MEMORY_GROWTH'     CMakeLists.txt || true
+grep -nE     'FULLSCREEN|HTML5_SUPPORT_DEFERRING_USER_SENSITIVE_REQUESTS|ALLOW_MEMORY_GROWTH'     CMakeLists.txt || true
 
 echo ""
 echo "========================================"
