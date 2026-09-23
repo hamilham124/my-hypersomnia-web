@@ -37,6 +37,53 @@ cd "$HYPERSOMNIA"
 
 echo ""
 echo "========================================"
+echo " Configuring official HTTPS server list"
+echo "========================================"
+
+# The browser client reaches the server list through the standard HTTPS
+# Hypersomnia frontend. This avoids requiring the Web build to contact
+# the masterserver service directly on TCP port 8420.
+#
+# Upstream make_canon_config.hpp normally points Web builds at:
+#   https://masterserver.hypersomnia.io:8420
+#
+# The official HTTPS frontend exposes the same server-list endpoint at:
+#   https://hypersomnia.io/server_list_binary
+#
+# The game appends /server_list_binary to server_list_provider, so the
+# provider must be the origin only.
+
+CANON_CONFIG="$HYPERSOMNIA/src/make_canon_config.hpp"
+
+if [ ! -f "$CANON_CONFIG" ]; then
+    echo "ERROR: Canonical config source was not found:"
+    echo "$CANON_CONFIG"
+    exit 1
+fi
+
+if grep -q 'masterserver.hypersomnia.io:8420' "$CANON_CONFIG"; then
+
+    sed -i         's#https://masterserver\.hypersomnia\.io:8420#https://hypersomnia.io#g'         "$CANON_CONFIG"
+
+    echo "Official HTTPS server-list provider configured."
+
+elif grep -q 'result.server_list_provider = "https://hypersomnia.io";' "$CANON_CONFIG"; then
+
+    echo "Official HTTPS server-list provider already configured."
+
+else
+
+    echo "ERROR: Could not find the expected Web server-list provider."
+    echo "Expected the upstream masterserver.hypersomnia.io:8420 provider."
+    exit 1
+
+fi
+
+echo "Configured provider:"
+grep -n 'result.server_list_provider' "$CANON_CONFIG"
+
+echo ""
+echo "========================================"
 echo " Removing Web pthread configuration"
 echo "========================================"
 
